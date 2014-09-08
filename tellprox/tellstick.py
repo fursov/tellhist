@@ -4,6 +4,8 @@ from msensor import *
 from tasensor import *
 import bottle_helpers as bh
 import tellcore.telldus as td
+import MySQLdb
+import MySQLdb.cursors
 
 def map_response(cmdresp, id = '', method = ''):
 	if (cmdresp == TELLSTICK_SUCCESS):
@@ -188,6 +190,10 @@ class TellstickAPI(object):
 				'fn'    : self.sensor_info,
 				'inputs': { 'name': 'id', 'type': 'int', 'description': '' }
 			},
+                        'history': {
+                                'fn'    : self.sensor_history,
+                                'inputs': { 'name': 'id', 'type': 'int', 'description': '' }
+                        },
 			'setignore': {
 				'fn'    : self.sensor_setignore,
 				'inputs': [
@@ -346,6 +352,21 @@ class TellstickAPI(object):
 		if not sensor: return map_response("Sensor " + "\"" + str(id) + "\" not found!")
 		return self.sensor_to_dict(sensor, True)
 	
+        def sensor_history(self, func, id):
+                #sensor = self.get_sensor(id)
+                #if not sensor: return map_response("Sensor " + "\"" + str(id) + "\" not found!")
+                #return self.sensor_to_dict(sensor, True)
+		db = MySQLdb.connect(db = 'ha', user = 'ha', passwd = 'ha', cursorclass = MySQLdb.cursors.DictCursor)
+		cursor = db.cursor()
+		query = "SELECT `temperature`, `humidity`, `timestamp` FROM `sensordata` WHERE `sensor_id`='" + str(id) + "' ORDER BY `timestamp` ASC"
+		numOfEntries = cursor.execute(query)
+		allEntries = cursor.fetchall()
+		outDict = {}
+		outDict['id'] = id
+		outDict['data'] = allEntries
+		return outDict
+			
+
 	@dec_response
 	def sensor_setignore(self, func, id, ignore):
 		sensor = self.get_sensor(id)
@@ -429,6 +450,8 @@ class TellstickAPI(object):
 			
 		return dict
 	
+
+
 	def sensor_to_dict(self, sensor, info):
 		# Set default value in case we get back nothing
 		lastUpdated = -1
